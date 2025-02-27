@@ -1,45 +1,39 @@
-import React, { useState } from "react";
-import axios from "axios";
-import '../css/Contact.css';
-const Contact = () => {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    subject: "",
-    message: "",
-  });
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const nodemailer = require("nodemailer");
+const bodyParser = require("body-parser");
 
-  const [status, setStatus] = useState("");
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+app.post("/send-email", (req, res) => {
+  const { name, email, subject, message } = req.body;
+
+  const mailOptions = {
+    from: email,
+    to: process.env.EMAIL_USER,
+    subject: `New Contact Form Submission: ${subject}`,
+    text: `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`,
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setStatus("Sending...");
-
-    try {
-      const response = await axios.post("http://localhost:5000/send-email", formData);
-      setStatus(response.data.message);
-    } catch (error) {
-      setStatus("Failed to send email. Try again.");
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      return res.status(500).json({ message: "Error sending email" });
     }
-  };
+    res.status(200).json({ message: "Email sent successfully!" });
+  });
+});
 
-  return (
-    <div className="contact-section">
-      <h2>Contact Me</h2>
-      <form onSubmit={handleSubmit}>
-        <input type="text" name="name" placeholder="Your Name" onChange={handleChange} required />
-        <input type="email" name="email" placeholder="Your Email" onChange={handleChange} required />
-        <input type="text" name="subject" placeholder="Subject" onChange={handleChange} required />
-        <textarea name="message" placeholder="Your Message" rows="4" onChange={handleChange} required></textarea>
-        <button type="submit" className="cta-button">Send Email</button>
-        {status && <p className="status-message">{status}</p>}
-      </form>
-    </div>
-  );
-};
-
-export default Contact;
+app.listen(5000, () => {
+  console.log("Server running on port 5000");
+});
